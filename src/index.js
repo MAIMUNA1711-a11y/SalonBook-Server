@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -15,18 +15,72 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(helmet());
 
-const allowed = (process.env.CLIENT_URL || "http://localhost:3000").split(",").map((s) => s.trim().replace(/\/$/, ""));
+const defaultOrigins = [
+  "http://localhost:3000",
+  "https://salon-book-client-ruddy.vercel.app",
+  "https://salon-book-client-git-main-m-ccf1.vercel.app",
+];
+
+const envOrigins = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map((s) => s.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const cleanOrigin = origin.trim().replace(/\/$/, "");
+  if (allowedOrigins.includes(cleanOrigin)) return true;
+
+  try {
+    const parsed = new URL(cleanOrigin);
+    if (
+      parsed.protocol === "https:" &&
+      parsed.hostname.endsWith(".vercel.app") &&
+      parsed.hostname.startsWith("salon-book-client")
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+};
+
 app.use(
   cors({
-    origin: (origin, cb) => (!origin || allowed.includes(origin) ? cb(null, true) : cb(new Error("Not allowed by CORS"))),
+    origin: (origin, cb) => {
+      if (isOriginAllowed(origin)) {
+        return cb(null, true);
+      }
+      return cb(null, false);
+    },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Stripe webhook needs the RAW body to verify the signature -> must be before express.json()
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !isOriginAllowed(origin)) {
+    return res.status(403).json({
+      success: false,
+      message: `Origin not allowed by CORS: ${origin}`,
+    });
+  }
+  next();
+});
+
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), async (req, res, next) => {
-  try { await connectDB(); webhookHandler(req, res); } catch (e) { next(e); }
+  try {
+    await connectDB();
+    return webhookHandler(req, res);
+  } catch (e) {
+    next(e);
+  }
 });
 
 app.use(express.json({ limit: "1mb" }));
@@ -34,9 +88,13 @@ app.use(express.json({ limit: "1mb" }));
 app.get("/", (_req, res) => res.json({ success: true, message: "SalonBook API is running" }));
 app.get("/api/health", (_req, res) => res.json({ success: true, status: "ok" }));
 
-// Ensure DB is connected (works for serverless cold starts too)
 app.use(async (_req, _res, next) => {
-  try { await connectDB(); next(); } catch (e) { next(e); }
+  try {
+    await connectDB();
+    next();
+  } catch (e) {
+    next(e);
+  }
 });
 
 app.use("/api/services", servicesRoutes);
@@ -50,6 +108,8 @@ app.use(notFound);
 app.use(errorHandler);
 
 const port = process.env.PORT || 5000;
-if (!process.env.VERCEL) app.listen(port, () => console.log(`SalonBook API running on http://localhost:${port}`));
+if (!process.env.VERCEL) {
+  app.listen(port, () => console.log(`SalonBook API running on http://localhost:${port}`));
+}
 
 export default app;
