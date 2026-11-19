@@ -13,3 +13,9 @@ Backend REST API, role verification, appointment scheduling, and Stripe Checkout
 - Services CRUD with active/inactive toggle, search, category filter, and price sorting
 - Appointments booking with duplicate date/time-slot conflict prevention
 - Stripe Checkout session and verified webhook payment status + transaction history
+
+## Tech stack
+Node.js, Express.js, MongoDB, JWT / Auth Middleware, Stripe SDK & Webhooks, ImgBB, Render
+
+## Required environment variables (names only)
+PORT, NODE_ENV, CLIENT_URL, MONGODB_URI, MONGODB_DB, JWT_SECRET, BETTER_AUTH_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, IMGBB_API_KEY
