@@ -3,3 +3,7 @@ node_modules
 .env.*
 !.env.example
 .vercel
+
+.env
+.env.local
+node_modules

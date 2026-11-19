@@ -1,4 +1,4 @@
-﻿import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { User } from "../models/index.js";
 import { ApiError, asyncHandler } from "../utils/helpers.js";
 

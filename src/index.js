@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -29,10 +29,11 @@ const envOrigins = (process.env.CLIENT_URL || "")
 const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 const isOriginAllowed = (origin) => {
-  if (!origin) return true;
+  if (!origin) return true; // server-to-server / Postman / curl
   const cleanOrigin = origin.trim().replace(/\/$/, "");
   if (allowedOrigins.includes(cleanOrigin)) return true;
 
+  // Allow any Vercel deployment URL for this project if needed
   try {
     const parsed = new URL(cleanOrigin);
     if (
@@ -63,6 +64,7 @@ app.use(
   })
 );
 
+// Extra safety guard so disallowed origins get a clean 403 without noisy error stack traces
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && !isOriginAllowed(origin)) {
@@ -74,6 +76,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Stripe webhook needs the RAW body to verify the signature -> must be before express.json()
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), async (req, res, next) => {
   try {
     await connectDB();
@@ -88,6 +91,7 @@ app.use(express.json({ limit: "1mb" }));
 app.get("/", (_req, res) => res.json({ success: true, message: "SalonBook API is running" }));
 app.get("/api/health", (_req, res) => res.json({ success: true, status: "ok" }));
 
+// Ensure DB is connected (works for serverless cold starts too)
 app.use(async (_req, _res, next) => {
   try {
     await connectDB();
