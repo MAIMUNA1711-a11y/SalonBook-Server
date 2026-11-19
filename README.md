@@ -19,3 +19,10 @@ Node.js, Express.js, MongoDB, JWT / Auth Middleware, Stripe SDK & Webhooks, ImgB
 
 ## Required environment variables (names only)
 PORT, NODE_ENV, CLIENT_URL, MONGODB_URI, MONGODB_DB, JWT_SECRET, BETTER_AUTH_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, IMGBB_API_KEY
+
+## Installation
+npm install
+cp .env.example .env
+
+## Run locally
+npm run dev
