@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+﻿import { createRemoteJWKSet, jwtVerify } from "jose";
 import { User } from "../models/index.js";
 import { ApiError, asyncHandler } from "../utils/helpers.js";
 
@@ -15,7 +15,7 @@ const getJwks = () => {
  * JWT verification middleware.
  * 1. Reads "Authorization: Bearer <jwt>" (token issued by Better Auth's JWT plugin)
  * 2. Verifies signature + issuer against the client's JWKS endpoint
- * 3. Loads the user from MongoDB so role / isBlocked are always fresh (never trusted from the token)
+ * 3. Loads/syncs the user from MongoDB so role / isBlocked are always fresh
  */
 export const verifyJWT = asyncHandler(async (req, _res, next) => {
   const header = req.headers.authorization || "";
@@ -30,7 +30,32 @@ export const verifyJWT = asyncHandler(async (req, _res, next) => {
     throw new ApiError(401, "Invalid or expired token");
   }
 
-  const user = await User.findById(payload.sub).lean();
+  let user = null;
+
+  if (payload.sub) {
+    try {
+      user = await User.findById(payload.sub).lean();
+    } catch {
+      user = null;
+    }
+  }
+
+  if (!user && payload.email) {
+    const normalizedEmail = String(payload.email).toLowerCase().trim();
+    user = await User.findOne({ email: normalizedEmail }).lean();
+
+    if (!user) {
+      const created = await User.create({
+        name: payload.name || normalizedEmail.split("@")[0] || "User",
+        email: normalizedEmail,
+        image: payload.picture || payload.image || "",
+        role: "customer",
+        isBlocked: false,
+      });
+      user = created.toObject();
+    }
+  }
+
   if (!user) throw new ApiError(401, "User not found");
   if (user.isBlocked) throw new ApiError(403, "Your account has been blocked");
 
