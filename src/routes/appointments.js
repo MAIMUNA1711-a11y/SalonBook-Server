@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import { Appointment, Service } from "../models/index.js";
 import { verifyJWT, requireCustomer } from "../middleware/auth.js";
